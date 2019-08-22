@@ -53,32 +53,34 @@ class Operation:
         self.amount = None
         self.currency = None
         self.balance = None
+        self.description = None
         self.location = Location()
         self.timestamp = None
-        
-    def __str__(self):
-        return self.type
-    
-    def __lt__(self, other):
-        return self.type.value > other.type.value
 
+        self.title = None
 
-class OperationWithReceiver(Operation):
-    def __init__(self):
-        super().__init__()
+        # receiver
         self.receiverAccount = None
         self.receiverName = None
         self.receiverAddress = None
 
-
-class OperationWithSender(Operation):
-    def __init__(self):
-        super().__init__()
+        # sender
         self.senderAccount = None
         self.senderName = None
         self.senderAddress = None
 
+    def __str__(self):
+        # return "{:>10} {:>8}".format(self.type.name, self.amount)
+        # return "{0.type.name} {0.amount}".format(self)
+        return "{type.name:>18} {amount:>10} {currency:>4}".format(**self.__dict__)
+
+    def __lt__(self, other):
+        return self.type.value > other.type.value
+
+
 import collections
+import re
+
 
 def groupby_unsorted(seq, key=lambda x: x):
     indexes = collections.defaultdict(list)
@@ -86,7 +88,8 @@ def groupby_unsorted(seq, key=lambda x: x):
         indexes[key(elem)].append(i)
     for k, idxs in indexes.items():
         yield k, (seq[i] for i in idxs)
-        
+
+
 operations = []
 missed = []
 
@@ -95,21 +98,47 @@ with open('./../data/history_csv_20190609_170438.csv') as csvfile:
     csvOperationsCount = -1
     for row in reader:
         csvOperationsCount += 1
-        print(len(row), csvOperationsCount, '; '.join(row))
+        if csvOperationsCount < 100:
+            # print(csvOperationsCount, ';  '.join(row))
+            print(csvOperationsCount, row[6])
+            # print(csvOperationsCount, row[7])
+            # print(csvOperationsCount, row[8])
+            # print(csvOperationsCount, row[6], " -> ", row[7], " -> ", row[8])
+            # print(csvOperationsCount, row[6], " -> ", row[7], " -> ", row[8])
+        if csvOperationsCount == 0:  # skip header line
+            continue
 
-        literalType = row[2]
-        operationType = PkoBpParser.typesMapping.get(literalType, None)
-        if operationType is not None:
-            o = Operation()
-            o.type = operationType
-            operations.append(o)
-        else:
+        if row[2] not in PkoBpParser.typesMapping:
             missed.append(row)
+            continue
+
+        o = Operation()
+        operations.append(o)
+
+        o.id = csvOperationsCount
+        o.date = row[0]
+        o.type = PkoBpParser.typesMapping.get(row[2])
+        o.amount = row[3]
+        o.currency = row[4]
+        o.balance = row[5]
+        description = row[6]
+
+        m = re.match('Rachunek odbiorcy: (?P<acc>.*)', description)
+        if m:
+            o.receiverAccount = m.group('acc')
+        m = re.match('Rachunek nadawcy: (?P<acc>.*)', description)
+        if m:
+            o.senderAccount = m.group('acc')
+        m = re.match('Tytuł: (?P<title>.*)', description)
+        if m:
+            o.title = m.group('title')
 
 print('csv: ', csvOperationsCount, 'operations: ', len(operations))
 print('missed')
 for row in missed:
     print(row)
-# sorted(operations, key=lambda o: o.type.value)
-for k, v in itertools.groupby(sorted(operations, key=lambda o: o.type.value), lambda o: o.type):
-    print(k, len(list(v)))
+for o in sorted(operations, key=lambda o: o.type.value):
+    print(o.type, o.amount, o.receiverAccount, o.senderAccount, o.title)
+    # print(o)
+# for k, v in itertools.groupby(sorted(operations, key=lambda o: o.type.value), lambda o: o.type):
+#     print(k, len(list(v)))
