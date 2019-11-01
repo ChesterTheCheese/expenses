@@ -1,28 +1,31 @@
 import csv
 from enum import Enum
-
+from operator import attrgetter
 import itertools
 
 
 class OperationType(Enum):
-    CARD_PAYMENT, \
-    CARD_PAYMENT_RETURN, \
-    TRANSFER_OUT, \
-    TRANSFER_IN, \
-    ATM_OUT, \
-    ATM_IN, \
-    MOBILE_PAYMENT, \
-    ZUS_PAYMENT, \
-    US_PAYMENT, \
-    TERMINAL_RETURN, \
-    INTEREST, \
-    PAYBYNET_BLIK, \
-    GAIN, \
-    *_ = range(100)
+    [CARD_PAYMENT,
+     CARD_PAYMENT_RETURN,
+     TRANSFER_OUT,
+     TRANSFER_IN,
+     ATM_OUT,
+     ATM_IN,
+     MOBILE_PAYMENT,
+     ZUS_PAYMENT,
+     US_PAYMENT,
+     TERMINAL_RETURN,
+     INTEREST,
+     PAYBYNET_BLIK,
+     GAIN,
+     *_] = range(100)
+
+    def __lt__(self, other):
+        return self.value < other.value
 
 
 class PkoBpParser:
-    typesMapping = {
+    typeMappings = {
         'Płatność kartą': OperationType.CARD_PAYMENT,
         'Przelew z rachunku': OperationType.TRANSFER_OUT,
         'Przelew na rachunek': OperationType.TRANSFER_IN,
@@ -57,6 +60,7 @@ class Operation:
         self.location = Location()
         self.timestamp = None
 
+        self.noDefinedTitle = False
         self.title = None
 
         # receiver
@@ -90,6 +94,13 @@ def groupby_unsorted(seq, key=lambda x: x):
         yield k, (seq[i] for i in idxs)
 
 
+def tryAssignIfMatches(obj, fieldName, titleRegex, description):
+    m = re.match(titleRegex, description)
+    if m and getattr(obj, fieldName) is None:
+        setattr(obj, fieldName, m.group('title'))
+    pass
+
+
 operations = []
 missed = []
 
@@ -108,7 +119,7 @@ with open('./../data/history_csv_20190609_170438.csv') as csvfile:
         if csvOperationsCount == 0:  # skip header line
             continue
 
-        if row[2] not in PkoBpParser.typesMapping:
+        if row[2] not in PkoBpParser.typeMappings:
             missed.append(row)
             continue
 
@@ -117,28 +128,54 @@ with open('./../data/history_csv_20190609_170438.csv') as csvfile:
 
         o.id = csvOperationsCount
         o.date = row[0]
-        o.type = PkoBpParser.typesMapping.get(row[2])
+        o.type = PkoBpParser.typeMappings.get(row[2])
         o.amount = row[3]
         o.currency = row[4]
         o.balance = row[5]
-        description = row[6]
+        description1 = row[6].strip()
+        description2 = row[7].strip()
+        description3 = row[8].strip()
+        description4 = row[9].strip()
 
-        m = re.match('Rachunek odbiorcy: (?P<acc>.*)', description)
+        m = re.match('Rachunek odbiorcy: (?P<acc>.*)', description1)
         if m:
             o.receiverAccount = m.group('acc')
-        m = re.match('Rachunek nadawcy: (?P<acc>.*)', description)
+        m = re.match('Rachunek nadawcy: (?P<acc>.*)', description1)
         if m:
             o.senderAccount = m.group('acc')
-        m = re.match('Tytuł: (?P<title>.*)', description)
-        if m:
-            o.title = m.group('title')
+
+        # TODO: CardPayments has no sense without parsed Location
+        # TODO: Transfers have semi sense whithout ReceiverName ('NazwaOdbiorcy' or mapped ReceiverAccount)
+        # TODO: general complex PaymentMatcher to properly categorize operations into PaymentTopics
+
+        titleRegex = 'Tytuł: (?P<title>.*)'
+        tryAssignIfMatches(o, 'title', titleRegex, description1)
+        tryAssignIfMatches(o, 'title', titleRegex, description2)
+        tryAssignIfMatches(o, 'title', titleRegex, description3)
+        tryAssignIfMatches(o, 'title', titleRegex, description4)
+        if o.title is None:
+            o.title = f'{description1} | {description2} | {description3} | {description4}'
+            o.noDefinedTitle = True
+
+        # override payment type if it was a forwarded ZUS payment    
+        if ' ZUS ' in o.title:
+            o.type = OperationType.ZUS_PAYMENT
 
 print('csv: ', csvOperationsCount, 'operations: ', len(operations))
 print('missed')
 for row in missed:
     print(row)
-for o in sorted(operations, key=lambda o: o.type.value):
-    print(o.type, o.amount, o.receiverAccount, o.senderAccount, o.title)
+
+operations.sort(key=attrgetter('type'))
+operations.sort(key=attrgetter('noDefinedTitle'))
+for o in operations:
+    print(f'{o.type:32}'
+          f' || {o.amount:>10}'
+          f' || rec: {o.receiverAccount!s:32}'
+          f' || sen: {o.senderAccount!s:32}'
+          f" || title{'(noTitle)' if o.noDefinedTitle else ''}: {o.title}")
+    # print('type:{:32} {:>10}  rec:{!s:32}   sen:{!s:32}   title:{}'
+    #       .format(o.type, o.amount, o.receiverAccount, o.senderAccount, o.title))
     # print(o)
 # for k, v in itertools.groupby(sorted(operations, key=lambda o: o.type.value), lambda o: o.type):
 #     print(k, len(list(v)))
