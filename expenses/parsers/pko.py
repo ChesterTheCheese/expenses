@@ -14,7 +14,7 @@ typeMappings = {
     'Przelew do ZUS': OperationType.ZUS_PAYMENT,
     'Przelew podatkowy': OperationType.US_PAYMENT,
     'Zwrot w terminalu': OperationType.TERMINAL_RETURN,
-    'Naliczenie odsetek': OperationType.INTEREST,
+    'Naliczenie odsetek': OperationType.INTEREST_TAX,
     'Przelew Paybynet BLIK': OperationType.PAYBYNET_BLIK,
     'Uznanie': OperationType.GAIN,
 }

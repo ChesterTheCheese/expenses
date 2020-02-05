@@ -3,7 +3,7 @@ import re
 from operator import attrgetter
 
 from parsers import pko
-import operation
+from operation import Operation, OperationType, Location
 import utils
 
 
@@ -16,6 +16,37 @@ def assignFromDescriptionsIfMatches(pkoOperation, targetObj, targetFieldName, re
             setattr(targetObj, targetFieldName, m.group(regexGroupName))
             index = pkoOperation.description.index(d)
             pkoOperation.description[index] = '<OK>' + d
+
+
+def tryAssingFullLocation(pkoOperation: pko.PkoBpOperation, o: Operation):
+    regex = 'Lokalizacja: Kraj: (?P<country>.*) Miasto: (?P<city>.*) Adres: (?P<addr>.*)'
+    for desc in pkoOperation.description:
+        m = re.match(regex, desc)
+        if m:
+            country = m.group('country')
+            city = m.group('city')
+            address = m.group('addr')
+            o.location = Location()
+            o.location.country = country
+            o.location.city = city
+            o.location.address = address
+            index = pkoOperation.description.index(desc)
+            pkoOperation.description[index] = '<OK>' + desc
+
+
+def tryAssingSimpleLocation(pkoOperation: pko.PkoBpOperation, o: Operation):
+    regex = 'Lokalizacja: Adres: (?P<addr>.*)'
+    for desc in pkoOperation.description:
+        m = re.match(regex, desc)
+        if m:
+            address = m.group('addr')
+            o.location = Location()
+            o.location.country = ''
+            o.location.city = ''
+            o.location.address = address
+            index = pkoOperation.description.index(desc)
+            pkoOperation.description[index] = '<OK>' + desc
+    pass
 
 
 if __name__ == '__main__':
@@ -60,7 +91,7 @@ if __name__ == '__main__':
                 missedBankOperations.append(pkoOperation)
                 continue
 
-            o = operation.Operation()
+            o = Operation()
             operations.append(o)
             o.id = pkoOperation.id
             o.date = pkoOperation.operationDate
@@ -69,7 +100,6 @@ if __name__ == '__main__':
             o.currency = pkoOperation.currency
             o.balance = pkoOperation.afterTransactionBalance
 
-            # TODO: CardPayments has no sense without parsed Location
             # TODO: Transfers have semi sense whithout ReceiverName ('NazwaOdbiorcy' or mapped ReceiverAccount)
             # TODO: general complex PaymentMatcher to properly categorize operations into PaymentTopics
 
@@ -80,17 +110,21 @@ if __name__ == '__main__':
             assignFromDescriptionsIfMatches(pkoOperation, o, 'senderName', 'Nazwa nadawcy: (?P<name>.*)', 'name')
             assignFromDescriptionsIfMatches(pkoOperation, o, 'senderAddress', 'Adres nadawcy: (?P<addr>.*)', 'addr')
             assignFromDescriptionsIfMatches(pkoOperation, o, 'title', 'Tytuł: (?P<title>.*)', 'title')
+            tryAssingFullLocation(pkoOperation, o)
+            if o.location is None:
+                tryAssingSimpleLocation(pkoOperation, o)
 
+            # aggregate unmapped values to otherInfo field
             for desc in pkoOperation.description:
                 if '<OK>' not in desc:
                     o.otherInfo += desc + ' | '
 
-            # override payment type if it was a forwarded ZUS payment    
-            if o.title is not None and ' ZUS ' in o.title:
-                o.type = operation.OperationType.ZUS_PAYMENT
+            # override payment type if it was a forwarded ZUS payment
+            if o.title and ' ZUS ' in o.title:
+                o.type = OperationType.ZUS_PAYMENT
 
     print('csv: ', csvOperationsCount, 'operations: ', len(operations))
-    print('missed')
+    print(f'missed {len(missedBankOperations)}')
     for row in missedBankOperations:
         print(row)
 
@@ -106,17 +140,8 @@ if __name__ == '__main__':
 
     operations.sort(key=attrgetter('type'))
     # operations.sort(key=attrgetter('noDefinedTitle'))
-    for o in operations:
-        print(f'{o.type:32}'
-              f' || {o.amount:>10}'
-              f' || rec: {o.receiverAccount!s:32}'
-              f' || sen: {o.senderAccount!s:32}'
-              f" || title{'(noTitle)' if o.title is None else ''}: {o.title}"
-              f' || other:{o.otherInfo}')
+    # utils.print_bank_operations_list(operations[:10])
+    utils.print_bank_operations_list(operations)
 
-        # print('type:{:32} {:>10}  rec:{!s:32}   sen:{!s:32}   title:{}'
-        #       .format(o.type, o.amount, o.receiverAccount, o.senderAccount, o.title))
-        # print(o)
-
-        # for k, v in itertools.groupby(sorted(operations, key=lambda o: o.type.value), lambda o: o.type):
-        #     print(k, len(list(v)))
+    # for k, v in itertools.groupby(sorted(operations, key=lambda o: o.type.value), lambda o: o.type):
+    #     print(k, len(list(v)))

@@ -11,6 +11,9 @@ def groupby_unsorted(seq, key=lambda x: x):
 
 
 def print_bank_operations_list(l: List):
-    print(f'bankOperations ({len(l)})')
-    for e in l:
-        print(e)
+    try:
+        print(f'bankOperations ({len(l)})')
+        for e in l:
+            print(e)
+    except Exception as er:  # for finding None values with debugger
+        print(f'Exception caught! {er}')
