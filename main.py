@@ -25,7 +25,7 @@ if __name__ == '__main__':
     operations = []
 
     # df = pd.read_csv(file_path) # pandas
-    with open('./data/history_csv_20190609_170438.csv') as csvfile:
+    with open('./data/history_csv_20190609_170438_sample.csv') as csvfile:
         reader = csv.reader(csvfile)
         csvOperationsCount = -1
         for row in reader:
