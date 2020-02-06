@@ -23,28 +23,28 @@ typeMappings = {
 @dataclass(init=False)
 class PkoBpOperation:
     id: int
-    operationDate: str
-    currencyDate: str
-    transactionType: str
+    operation_date: str
+    currency_date: str
+    transaction_type: str
     amount: str
     currency: str
-    afterTransactionBalance: str
-    description: List[str] = field(default_factory=list)
+    after_transaction_balance: str
+    descriptions: List[str] = field(default_factory=list)
 
     def __str__(self):
         return f'{self.id:4}' \
-               f' | {self.operationDate:10}' \
-               f' | {self.transactionType:32}' \
+               f' | {self.operation_date:10}' \
+               f' | {self.transaction_type:32}' \
                f' | {self.currency:3}' \
                f' | {self.amount:>8}' \
-               f' | {self.afterTransactionBalance:>9}' \
-               f' | {self.description[1]:{0 if self.description[1] is None else 90}}' \
-               f' | {self.description[2]}' \
-               f' | {self.description[3]}' \
-               f' | {self.description[4]}' \
-               f' | {self.description[5]}' \
-               f' | {self.description[6]}' \
-               f' | {self.description[0]:32}'
+               f' | {self.after_transaction_balance:>9}' \
+               f' | {self.descriptions[1]:{0 if self.descriptions[1] is None else 90}}' \
+               f' | {self.descriptions[2]}' \
+               f' | {self.descriptions[3]}' \
+               f' | {self.descriptions[4]}' \
+               f' | {self.descriptions[5]}' \
+               f' | {self.descriptions[6]}' \
+               f' | {self.descriptions[0]:32}'
 
         # @classmethod
         # def get_mapping(cls, pko_operation_name: str) -> operation.OperationType:

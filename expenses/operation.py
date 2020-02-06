@@ -33,7 +33,7 @@ class Location:
         return f"{country}{city}{self.address}"
 
 
-@dataclass(init=False)
+@dataclass(init=False)  # initialize all to None so that attributes can be checked for emptiness
 class Operation:
     date: str = None
     type: OperationType = None
@@ -43,32 +43,42 @@ class Operation:
     description: str = None
     location: Location = None
     timestamp: str = None
+    title: str = None
 
-    title = None
+    other: str = ''
 
-    otherInfo: str = ''
+    original_amount: int = None
+    original_currency: str = None
+    conversion_date: str = None
 
     # receiver
-    receiverAccount: str = None
-    receiverName: str = None
-    receiverAddress: str = None
+    receiver_account: str = None
+    receiver_name: str = None
+    receiver_address: str = None
 
     # sender
-    senderAccount: str = None
-    senderName: str = None
-    senderAddress: str = None
+    sender_account: str = None
+    sender_name: str = None
+    sender_address: str = None
 
     def __str__(self):
         title_str = f"{self.title if self.title else '(noTitle)'}"
         location_str = f"{self.location if self.location else '(noLocation)'}"
+        orig_amount_str = self.original_amount if self.original_amount else ""
+        orig_curr_str = self.original_currency if self.original_currency else ""
         return \
             f'{self.type:36}' \
             f' || {self.amount:>10}' \
-            f" || loc: {location_str:64}  " \
-            f" || title: {title_str:90}" \
-            f' || rec: {self.receiverAccount!s:32}' \
-            f' || sen: {self.senderAccount!s:32}' \
-            f' || other:{self.otherInfo}'
+            f' || loc: {location_str:64}' \
+            f' || title: {title_str:90}' \
+            f' || rec: {self.receiver_account!s:32}' \
+            f' || sen: {self.sender_account!s:32}' \
+            f' || orig: {orig_amount_str:>10} {orig_curr_str :3}' \
+            f' || other:{self.other}'
+        # return \
+        #     f'{self.type:36}' \
+        #     f' || orig: {(self.original_amount if self.original_amount else ""):>10} {(self.original_currency if self.original_currency else ""):3}' \
+        #     f' || other:{self.other}'
 
     def __lt__(self, other):
         return self.type.__lt__(other)
