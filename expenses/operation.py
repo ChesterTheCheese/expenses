@@ -71,8 +71,8 @@ class Operation:
             f' || {self.amount:>10}' \
             f' || loc: {location_str:64}' \
             f' || title: {title_str:90}' \
-            f' || rec: {self.receiver_account!s:32}' \
-            f' || sen: {self.sender_account!s:32}' \
+            f' || rec: {self.receiver_account!s:32} - {self.receiver_name !s:32}' \
+            f' || sen: {self.sender_account!s:32} - {self.sender_name!s:32}' \
             f' || orig: {orig_amount_str:>10} {orig_curr_str :3}' \
             f' || other:{self.other}'
         # return \
