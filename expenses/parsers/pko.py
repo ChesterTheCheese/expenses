@@ -58,7 +58,7 @@ class PkoBpOperation:
 IGNORED = []
 
 
-def load_file(filename):
+def load_and_parse_operations(filename):
     bank_operations = []
     missed_bank_operations = []
     operations = []
@@ -97,31 +97,31 @@ def load_file(filename):
             o.currency = pko_operation.currency
             o.balance = pko_operation.after_transaction_balance
 
-            assign_from_descriptions_if_matches(pko_operation, o, 'receiver_account', 'Rachunek odbiorcy: (?P<acc>.*)', 'acc')
-            assign_from_descriptions_if_matches(pko_operation, o, 'receiver_name', 'Nazwa odbiorcy: (?P<name>.*)', 'name')
-            assign_from_descriptions_if_matches(pko_operation, o, 'receiver_address', 'Adres odbiorcy: (?P<addr>.*)', 'addr')
-            assign_from_descriptions_if_matches(pko_operation, o, 'sender_account', 'Rachunek nadawcy: (?P<acc>.*)', 'acc')
-            assign_from_descriptions_if_matches(pko_operation, o, 'sender_name', 'Nazwa nadawcy: (?P<name>.*)', 'name')
-            assign_from_descriptions_if_matches(pko_operation, o, 'sender_address', 'Adres nadawcy: (?P<addr>.*)', 'addr')
-            assign_from_descriptions_if_matches(pko_operation, o, 'conversion_date', 'Data przetworzenia: (?P<date>\\d{4}-\\d{2}-\\d{2})', 'date')
-            assign_from_descriptions_if_matches(pko_operation, o, 'title', 'Tytuł: (?P<title>.*)', 'title')
-            try_assign_original_payment_amount(pko_operation, o)
-            try_assign_simple_location(pko_operation, o)
-            try_assign_full_location(pko_operation, o)
+            parse_description_to_field_with_regex(pko_operation, o, 'receiver_account', 'Rachunek odbiorcy: (?P<acc>.*)', 'acc')
+            parse_description_to_field_with_regex(pko_operation, o, 'receiver_name', 'Nazwa odbiorcy: (?P<name>.*)', 'name')
+            parse_description_to_field_with_regex(pko_operation, o, 'receiver_address', 'Adres odbiorcy: (?P<addr>.*)', 'addr')
+            parse_description_to_field_with_regex(pko_operation, o, 'sender_account', 'Rachunek nadawcy: (?P<acc>.*)', 'acc')
+            parse_description_to_field_with_regex(pko_operation, o, 'sender_name', 'Nazwa nadawcy: (?P<name>.*)', 'name')
+            parse_description_to_field_with_regex(pko_operation, o, 'sender_address', 'Adres nadawcy: (?P<addr>.*)', 'addr')
+            parse_description_to_field_with_regex(pko_operation, o, 'conversion_date', 'Data przetworzenia: (?P<date>\\d{4}-\\d{2}-\\d{2})', 'date')
+            parse_description_to_field_with_regex(pko_operation, o, 'title', 'Tytuł: (?P<title>.*)', 'title')
+            parse_original_payment_amount(pko_operation, o)
+            parse_simple_location(pko_operation, o)
+            parse_full_location(pko_operation, o)
 
             # ignore unimportant descriptions
-            ignore_description(pko_operation, 'Data i czas operacji: (?P<date>\\d{4}-\\d{2}-\\d{2})')
-            ignore_description(pko_operation, 'Numer telefonu: \\+48 665 396 588')
-            ignore_description(pko_operation, 'KAPIT\\.ODSETEK KARNYCH-OBCIĄŻENIE')
-            ignore_description(pko_operation, 'Referencje własne zleceniodawcy:')
+            parse_ignore_description(pko_operation, 'Data i czas operacji: (?P<date>\\d{4}-\\d{2}-\\d{2})')
+            parse_ignore_description(pko_operation, 'Numer telefonu: \\+48 665 396 588')
+            parse_ignore_description(pko_operation, 'KAPIT\\.ODSETEK KARNYCH-OBCIĄŻENIE')
+            parse_ignore_description(pko_operation, 'Referencje własne zleceniodawcy:')
             if o.type is OperationType.US_PAYMENT:
-                ignore_description(pko_operation, 'Nazwa i nr identyfikatora:')
-                ignore_description(pko_operation, 'Symbol formularza:')
-                ignore_description(pko_operation, 'Okres płatności:')
+                parse_ignore_description(pko_operation, 'Nazwa i nr identyfikatora:')
+                parse_ignore_description(pko_operation, 'Symbol formularza:')
+                parse_ignore_description(pko_operation, 'Okres płatności:')
             if o.type in [OperationType.MOBILE_PAYMENT, OperationType.TERMINAL_RETURN]:
-                ignore_description(pko_operation, 'Numer referencyjny:')
+                parse_ignore_description(pko_operation, 'Numer referencyjny:')
             if o.type in [OperationType.CARD_PAYMENT, OperationType.CARD_PAYMENT_RETURN, OperationType.ATM_OUT]:
-                ignore_description(pko_operation, 'Numer karty: 425125.*452')
+                parse_ignore_description(pko_operation, 'Numer karty: 425125.*452')
 
             # aggregate unmapped values to other field
             for desc in pko_operation.descriptions:
@@ -171,7 +171,7 @@ def load_file(filename):
     return operations
 
 
-def assign_from_descriptions_if_matches(pko_operation: PkoBpOperation, target_obj, target_field_name, regex: str, regex_group_name: str):
+def parse_description_to_field_with_regex(pko_operation: PkoBpOperation, target_obj, target_field_name, regex: str, regex_group_name: str):
     for d in pko_operation.descriptions:
         m = re.match(regex, d)
         if m:
@@ -182,7 +182,7 @@ def assign_from_descriptions_if_matches(pko_operation: PkoBpOperation, target_ob
             pko_operation.descriptions[index] = '<OK>' + d
 
 
-def try_assign_full_location(pko_operation: PkoBpOperation, o: Operation):
+def parse_full_location(pko_operation: PkoBpOperation, o: Operation):
     regex = 'Lokalizacja: Kraj: (?P<country>.*) Miasto: (?P<city>.*) Adres: (?P<addr>.*)'
     for desc in pko_operation.descriptions:
         if m := re.match(regex, desc):
@@ -197,7 +197,7 @@ def try_assign_full_location(pko_operation: PkoBpOperation, o: Operation):
             pko_operation.descriptions[index] = '<OK>' + desc
 
 
-def try_assign_simple_location(pko_operation: PkoBpOperation, o: Operation):
+def parse_simple_location(pko_operation: PkoBpOperation, o: Operation):
     regex = 'Lokalizacja: Adres: (?P<addr>.*)'
     for desc in pko_operation.descriptions:
         if m := re.match(regex, desc):
@@ -210,7 +210,7 @@ def try_assign_simple_location(pko_operation: PkoBpOperation, o: Operation):
             pko_operation.descriptions[index] = '<OK>' + desc
 
 
-def try_assign_original_payment_amount(pko_operation, o):
+def parse_original_payment_amount(pko_operation, o):
     regex = 'Oryginalna kwota operacji: (?P<amount>\\d*,\\d*) (?P<curr>.*)'
     for desc in pko_operation.descriptions:
         if m := re.match(regex, desc):
@@ -223,7 +223,7 @@ def try_assign_original_payment_amount(pko_operation, o):
             pko_operation.descriptions[index] = '<OK>' + desc
 
 
-def ignore_description(pko_operation: PkoBpOperation, regex: str):
+def parse_ignore_description(pko_operation: PkoBpOperation, regex: str):
     """ mark given description part with <OK> marker so that it will be considered mapped """
     for d in pko_operation.descriptions:
         if re.match(regex, d):

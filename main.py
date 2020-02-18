@@ -9,7 +9,7 @@ if __name__ == '__main__':
     # filename = './data/history_csv_20190609_170438.csv'
     filename = './data/history_csv_20190609_170438_sample.csv'
     # filename = './data/js_20200101_20200131.csv'
-    operations = pko.load_file(filename)
+    operations = pko.load_and_parse_operations(filename)
 
     # for k, v in itertools.groupby(sorted(operations, key=lambda o: o.type.value), lambda o: o.type):
     #     print(k, len(list(v)))
