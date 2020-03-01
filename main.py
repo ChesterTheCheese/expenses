@@ -3,6 +3,58 @@ import pandas as pd
 
 from operation import OperationType
 from parsers import pko
+from topics import *
+
+GENERAL = Topic("GENERAL")
+EXPENSES = Topic("EXPENSES", GENERAL)
+HOME = Topic("HOME", EXPENSES)
+RENT = Topic("RENT", HOME)
+SHOPPING = Topic("SHOPPING", HOME)
+DELIVERY_FOOD = Topic("DELIVERY_FOOD", HOME)
+CAT = Topic("CAT", HOME)
+WORK = Topic("WORK", EXPENSES)
+LUNCHES = Topic("LUNCHES", WORK)
+FROG = Topic("FROG", WORK)
+SUBWAY = Topic("SUBWAY", WORK)
+
+FOOD = Topic("FOOD", EXPENSES)
+FAST_FOODS = Topic("FAST_FOODS", FOOD)
+RESTAURANTS = Topic("RESTAURANTS", FOOD)
+
+SPORT = Topic("SPORT", EXPENSES)
+MULTISPORT = Topic("MULTISPORT", SPORT)
+SNOWBOARDING = Topic("SNOWBOARDING", SPORT)
+CLIMBING = Topic("CLIMBING", SPORT)
+CLIMBING_EQUIPMENT = Topic("CLIMBING_EQUIPMENT", CLIMBING)
+ENTRANCE = Topic("ENTRANCE", CLIMBING)
+POOL = Topic("POOL", SPORT)
+BADMINTON = Topic("BADMINTON", SPORT)
+BOXING = Topic("BOXING", SPORT)
+
+ENTERTAINMENT = Topic("ENTERTAINMENT", EXPENSES)
+NIGHTS_OUT = Topic("NIGHTS_OUT", ENTERTAINMENT)
+SPECTACLES = Topic("SPECTACLES", ENTERTAINMENT)
+NETFLIX_ISH = Topic("NETFLIX_ISH", ENTERTAINMENT)
+
+CAR = Topic("CAR", EXPENSES)
+FUEL = Topic("FUEL", CAR)
+REPAIRS = Topic("REPAIRS", CAR)
+HIGHWAYS = Topic("HIGHWAYS", CAR)
+CAR_FOOD = Topic("CAR_FOOD", CAR)
+CAR_EQUIPMENT = Topic("CAR_EQUIPMENT", CAR)
+
+HOLIDAY = Topic("HOLIDAY", EXPENSES)
+TRIP = Topic("TRIP", HOLIDAY)
+TRANSPORT = Topic("TRANSPORT", HOLIDAY)
+AT_THE_PLACE = Topic("AT_THE_PLACE", HOLIDAY)
+
+INCOMES = Topic("INCOMES", GENERAL)
+LUFTHANSA = Topic("LUFTHANSA", INCOMES)
+LUFTHANSA_INCOME = Topic("LUFTHANSA_INCOME", LUFTHANSA)
+LUFTHANSA_DELEGATION = Topic("LUFTHANSA_DELEGATION", LUFTHANSA)
+
+print_assignment_code_for_structure(GENERAL)
+print_structure(GENERAL)
 
 if __name__ == '__main__':
 	#
@@ -12,12 +64,6 @@ if __name__ == '__main__':
 	filename = './data/history_csv_20190609_170438_sample.csv'
 	# filename = './data/js_20200101_20200131.csv'
 	operations = pko.load_and_parse_operations(filename)
-
-	# for k, v in itertools.groupby(sorted(operations, key=lambda o: o.type.value), lambda o: o.type):
-	#     print(k, len(list(v)))
-
-	# for k, v in utils.groupby_unsorted(operations, lambda o: o.type):
-	#     print(k, len(list(v)))
 
 	###################
 	# pandas analysis #
@@ -60,4 +106,3 @@ if __name__ == '__main__':
 	print(month_groupby.agg(['count', 'sum']))  # multiple aggregation types
 
 # TODO: general complex PaymentMatcher to properly categorize operations into PaymentTopics
-# TODO: topics hierarchy tree
