@@ -36,10 +36,10 @@ class Location:
 @dataclass(init=False)  # initialize all to None so that attributes can be checked for emptiness
 class Operation:
 	date: str = None
-	type: OperationType = None
-	amount: int = None
+	transaction_type: OperationType = None
+	amount: float = None
 	currency: str = None
-	balance: int = None
+	balance: float = None
 	description: str = None
 	location: Location = None
 	timestamp: str = None
@@ -47,7 +47,7 @@ class Operation:
 
 	other: str = ''
 
-	original_amount: int = None
+	original_amount: float = None
 	original_currency: str = None
 	conversion_date: str = None
 
@@ -67,7 +67,7 @@ class Operation:
 		orig_amount_str = self.original_amount if self.original_amount else ""
 		orig_curr_str = self.original_currency if self.original_currency else ""
 		return \
-			f'{self.type:36}' \
+			f'{self.transaction_type:36}' \
 			f' || {self.amount:>10}' \
 			f' || loc: {location_str:64}' \
 			f' || title: {title_str:90}' \
@@ -75,10 +75,6 @@ class Operation:
 			f' || sen: {self.sender_account!s:32} - {self.sender_name!s:32}' \
 			f' || orig: {orig_amount_str:>10} {orig_curr_str :3}' \
 			f' || other:{self.other}'
-		# return \
-		#     f'{self.type:36}' \
-		#     f' || orig: {(self.original_amount if self.original_amount else ""):>10} {(self.original_currency if self.original_currency else ""):3}' \
-		#     f' || other:{self.other}'
 
 	def __lt__(self, other):
-		return self.type.__lt__(other)
+		return self.transaction_type.__lt__(other)

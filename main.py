@@ -1,8 +1,10 @@
+from typing import List
+
 import numpy as np
 import pandas as pd
 
 import topics
-from operation import OperationType
+from operation import OperationType, Operation
 from parsers import pko
 
 GENERAL = topics.GENERAL
@@ -15,7 +17,7 @@ if __name__ == '__main__':
 	# filename = './data/history_csv_20190609_170438.csv'
 	filename = './data/history_csv_20190609_170438_sample.csv'
 	# filename = './data/js_20200101_20200131.csv'
-	operations = pko.load_and_parse_operations(filename)
+	operations: List[Operation] = pko.load_and_parse_operations(filename)
 
 	###################
 	# pandas analysis #
@@ -25,8 +27,6 @@ if __name__ == '__main__':
 	pd.set_option('display.width', 0)
 	operations_df = pd.DataFrame([vars(o) for o in operations])
 	operations_df = operations_df.replace(np.nan, '-', regex=True)  # TODO safe with non-string attributes?
-	operations_df['date'] = operations_df['date'].transform(lambda d: pd.to_datetime(d))
-	operations_df['amount'] = operations_df['amount'].transform(lambda a: float(a))
 	print(operations_df.head(20))
 	print(operations_df.shape)
 	print(f'Operations shape: {operations_df.shape} sum: {operations_df.amount.sum()}')
@@ -40,9 +40,9 @@ if __name__ == '__main__':
 	print(f'Expenses shape: {regular_expenses_df.shape} sum: {regular_expenses_df.amount.sum()}')
 	regular_expenses_df = regular_expenses_df[regular_expenses_df.amount <= 0]
 	print(f'Expenses shape: {regular_expenses_df.shape} sum: {regular_expenses_df.amount.sum()}')
-	regular_expenses_df = regular_expenses_df[regular_expenses_df['type'] != OperationType.ZUS_PAYMENT]
+	regular_expenses_df = regular_expenses_df[regular_expenses_df['transaction_type'] != OperationType.ZUS_PAYMENT]
 	print(f'Expenses shape: {regular_expenses_df.shape} sum: {regular_expenses_df.amount.sum()}')
-	regular_expenses_df = regular_expenses_df[regular_expenses_df['type'] != OperationType.US_PAYMENT]
+	regular_expenses_df = regular_expenses_df[regular_expenses_df['transaction_type'] != OperationType.US_PAYMENT]
 	print(f'Expenses shape: {regular_expenses_df.shape} sum: {regular_expenses_df.amount.sum()}')
 	regular_expenses_df = regular_expenses_df[~regular_expenses_df['receiver_name'].str.contains('ROLCZYŃSKI')]  # case sensitive
 	print(f'Expenses shape: {regular_expenses_df.shape} sum: {regular_expenses_df.amount.sum()}')

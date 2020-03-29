@@ -1,4 +1,5 @@
 import csv
+import datetime
 import re
 from dataclasses import dataclass, field
 from operator import attrgetter
@@ -36,23 +37,22 @@ class PkoBpOperation:
 	descriptions: List[str] = field(default_factory=list)
 
 	def __str__(self):
-		return f'{self.id:4}' \
-		       f' | {self.operation_date:10}' \
-		       f' | {self.transaction_type:32}' \
-		       f' | {self.currency:3}' \
-		       f' | {self.amount:>8}' \
-		       f' | {self.after_transaction_balance:>9}' \
-		       f' | {self.descriptions[1]:{0 if self.descriptions[1] is None else 90}}' \
-		       f' | {self.descriptions[2]}' \
-		       f' | {self.descriptions[3]}' \
-		       f' | {self.descriptions[4]}' \
-		       f' | {self.descriptions[5]}' \
-		       f' | {self.descriptions[6]}' \
-		       f' | {self.descriptions[0]:32}'
+		ret = f'{self.id:4}' \
+		      f' | {self.operation_date:10}' \
+		      f' | {self.transaction_type:32}' \
+		      f' | {self.currency:3}' \
+		      f' | {self.amount:>8}' \
+		      f' | {self.after_transaction_balance:>9}'
+		for desc in self.descriptions:
+			if len(desc) > 60:
+				desc = desc[:57] + '...'
+			ret += f' | {desc:60}'
+		return ret
 
-		# @classmethod
-		# def get_mapping(cls, pko_operation_name: str) -> operation.OperationType:
-		#     return cls.typeMappings[pko_operation_name]
+
+# @classmethod
+# def get_mapping(cls, pko_operation_name: str) -> operation.OperationType:
+#     return cls.typeMappings[pko_operation_name]
 
 
 IGNORED = []
@@ -61,7 +61,7 @@ IGNORED = []
 def load_and_parse_operations(filename):
 	bank_operations = []
 	missed_bank_operations = []
-	operations = []
+	operations: List[Operation] = []
 
 	with open(filename) as csv_file:
 		reader = csv.reader(csv_file)
@@ -81,7 +81,10 @@ def load_and_parse_operations(filename):
 			pko_operation.amount = row[3]
 			pko_operation.currency = row[4]
 			pko_operation.after_transaction_balance = row[5]
-			pko_operation.descriptions = [row[6], row[7], row[8], row[9], row[10], row[11], row[12]]
+			pko_operation.descriptions = []
+			for data in row[6:]:  # 7th column = start of 'descriptions', total number of columns varies
+				pko_operation.descriptions.append(data)
+
 			bank_operations.append(pko_operation)
 
 			if pko_operation.transaction_type not in typeMappings:
@@ -91,9 +94,9 @@ def load_and_parse_operations(filename):
 			o = Operation()
 			operations.append(o)
 			o.id = pko_operation.id
-			o.date = pko_operation.currency_date
-			o.type = typeMappings.get(pko_operation.transaction_type)
-			o.amount = pko_operation.amount
+			o.date = datetime.datetime.strptime(pko_operation.currency_date, '%Y-%m-%d')
+			o.transaction_type = typeMappings.get(pko_operation.transaction_type)
+			o.amount = float(pko_operation.amount)
 			o.currency = pko_operation.currency
 			o.balance = pko_operation.after_transaction_balance
 
@@ -114,13 +117,13 @@ def load_and_parse_operations(filename):
 			parse_ignore_description(pko_operation, 'Numer telefonu: \\+48 665 396 588')
 			parse_ignore_description(pko_operation, 'KAPIT\\.ODSETEK KARNYCH-OBCIĄŻENIE')
 			parse_ignore_description(pko_operation, 'Referencje własne zleceniodawcy:')
-			if o.type is OperationType.US_PAYMENT:
+			if o.transaction_type is OperationType.US_PAYMENT:
 				parse_ignore_description(pko_operation, 'Nazwa i nr identyfikatora:')
 				parse_ignore_description(pko_operation, 'Symbol formularza:')
 				parse_ignore_description(pko_operation, 'Okres płatności:')
-			if o.type in [OperationType.MOBILE_PAYMENT, OperationType.TERMINAL_RETURN]:
+			if o.transaction_type in [OperationType.MOBILE_PAYMENT, OperationType.TERMINAL_RETURN]:
 				parse_ignore_description(pko_operation, 'Numer referencyjny:')
-			if o.type in [OperationType.CARD_PAYMENT, OperationType.CARD_PAYMENT_RETURN, OperationType.ATM_OUT]:
+			if o.transaction_type in [OperationType.CARD_PAYMENT, OperationType.CARD_PAYMENT_RETURN, OperationType.ATM_OUT]:
 				parse_ignore_description(pko_operation, 'Numer karty: 425125.*452')
 
 			# aggregate unmapped values to other field
@@ -130,18 +133,15 @@ def load_and_parse_operations(filename):
 
 			# override payment type if it was a forwarded ZUS payment
 			if o.title and ' ZUS ' in o.title:
-				o.type = OperationType.ZUS_PAYMENT
+				o.transaction_type = OperationType.ZUS_PAYMENT
 
-	bank_operations.sort(key=lambda bo: bo.descriptions[0])
-	bank_operations.sort(key=lambda bo: bo.descriptions[6])
-	bank_operations.sort(key=lambda bo: bo.descriptions[5])
-	bank_operations.sort(key=lambda bo: bo.descriptions[4])
-	bank_operations.sort(key=lambda bo: bo.descriptions[3])
-	bank_operations.sort(key=lambda bo: bo.descriptions[2])
-	bank_operations.sort(key=lambda bo: bo.descriptions[1])
+	# sort bank operations using all description columns and transaction type
+	for i in reversed(range(len(bank_operations[0].descriptions))):
+		bank_operations.sort(key=lambda bo: bo.descriptions[i])
+	bank_operations.sort(key=lambda bo: bo.transaction_type)
 	utils.print_bank_operations_list(bank_operations)
 
-	operations.sort(key=attrgetter('type'))
+	operations.sort(key=lambda o: o.transaction_type)
 	utils.print_bank_operations_list(operations)
 
 	print()  # separator
@@ -154,7 +154,7 @@ def load_and_parse_operations(filename):
 	unmapped = [o for o in operations if o.other]
 	print(f'unmapped description parts: {len(unmapped)}')
 	for o in unmapped:
-		print(f'\t{o.type}, {o.other}')
+		print(f'\t{o.transaction_type}, {o.other}')
 	if len(unmapped):
 		print(f'unmapped description parts: {len(unmapped)} ^')
 
