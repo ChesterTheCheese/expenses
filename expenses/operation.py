@@ -1,6 +1,8 @@
 from dataclasses import dataclass
 from enum import Enum
 
+from topics import Topic
+
 
 class OperationType(Enum):
 	[CARD_PAYMENT,
@@ -44,6 +46,7 @@ class Operation:
 	location: Location = None
 	timestamp: str = None
 	title: str = None
+	topic: Topic = None
 
 	other: str = ''
 
@@ -60,6 +63,10 @@ class Operation:
 	sender_account: str = None
 	sender_name: str = None
 	sender_address: str = None
+
+	def get_init_location(self) -> Location:
+		self.location = Location()
+		return self.location
 
 	def __str__(self):
 		title_str = f"{self.title if self.title else '(noTitle)'}"
@@ -78,3 +85,9 @@ class Operation:
 
 	def __lt__(self, other):
 		return self.transaction_type.__lt__(other)
+
+	def __eq__(self, o: object) -> bool:
+		return super().__eq__(o)
+
+	def __hash__(self) -> int:
+		return super().__hash__()

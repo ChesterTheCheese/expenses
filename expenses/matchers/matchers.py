@@ -4,6 +4,7 @@ from typing import List
 import topics
 from operation import Operation, Location
 from topics import GENERAL
+from utils import Frogs
 
 
 def match_all(operations: List[Operation]) -> None:
@@ -11,10 +12,12 @@ def match_all(operations: List[Operation]) -> None:
 		match(op)
 
 
-def match(op: Operation) -> None:
+def match(operation: Operation) -> None:
 	for matcher in REGISTERED_MATCHERS:
-		if matcher.matches(op):
-			op.topic = matcher.get_topic()
+		matches = matcher.matches(matcher, operation)
+		if matches:
+			topic = matcher.get_topic()
+			operation.topic = topic
 
 
 def matches_address(operation, address) -> bool:
@@ -31,48 +34,86 @@ class TopicMatcher(ABC):
 		pass
 
 	@abstractmethod
-	def matches(self, operation: Operation) -> bool:
+	def self_matches(self, operation: Operation) -> bool:
 		pass
+
+	@classmethod
+	def matches(cls, self, operation):
+		"""
+		In order for a Matcher to match the operation all the parent Matcher classes has to match as well. This
+		function searches recursively through the matcher class hierarchy
+		"""
+		# check self matching
+		self_matches = cls.self_matches(self, operation)
+		if not self_matches:
+			return False
+		# check parent matching
+		parent = cls.__bases__[0]
+		if cls != GeneralMatcher:
+			if not parent.matches(self, operation):
+				return False
+		return True
 
 
 class GeneralMatcher(TopicMatcher):
 	def get_topic(self):
 		return GENERAL
 
-	def matches(self, operation: Operation) -> bool:
+	def self_matches(self, operation: Operation) -> bool:
 		return True
 
 
-class ExpensesMatcher(TopicMatcher):
+class ExpensesMatcher(GeneralMatcher):
 	def get_topic(self):
 		return GENERAL.EXPENSES
 
-	def matches(self, operation: Operation) -> bool:
-		return o.amount < 0
+	def self_matches(self, operation: Operation) -> bool:
+		amount = operation.amount and operation.amount < 0
+		return amount
 
 
-class WorkLunchMatcher(TopicMatcher):
+class WorkMatcher(ExpensesMatcher):
+	pass
+
+
+class WorkLunchMatcher(WorkMatcher):
 	def get_topic(self):
 		return GENERAL.EXPENSES.WORK.LUNCHES
 
-	def matches(self, operation: Operation) -> bool:
-		return matches_address(operation, 'Ludovisko') \
-		       or matches_address(operation, 'THAI WOK')
+	def self_matches(self, operation: Operation) -> bool:
+		ludo = matches_address(operation, 'Ludovisko')
+		thai_wok = matches_address(operation, 'THAI WOK')
+		return ludo or thai_wok
 
 
-class WorkSubwayMatcher(TopicMatcher):
+class WorkFrogMatcher(WorkMatcher):
+	def get_topic(self):
+		return GENERAL.EXPENSES.WORK.FROG
+
+	def self_matches(self, operation: Operation) -> bool:
+		froggy1 = matches_address(operation, Frogs.WORK.value[0])
+		froggy2 = matches_address(operation, Frogs.WORK.value[1])
+		return froggy1 or froggy2
+
+
+class WorkSubwayMatcher(WorkMatcher):
 
 	def get_topic(self):
 		return GENERAL.EXPENSES.WORK.SUBWAY
 
-	def matches(self, operation: Operation) -> bool:
-		return matches_address(operation, 'SUBWAY')
+	def self_matches(self, operation: Operation) -> bool:
+		matches = matches_address(operation, 'SUBWAY')
+		return matches
 
 
-class BadmintonMatcher(TopicMatcher):
+class BadmintonMatcher(ExpensesMatcher):
 
-	def matches(self, operation: Operation) -> bool:
-		return False  # TODO
+	def get_topic(self) -> topics.Topic:
+		return GENERAL.EXPENSES.SPORT.BADMINTON
+
+	def self_matches(self, operation: Operation) -> bool:
+		badminton = matches_address(operation, 'KLUB BADMINTONA')
+		return badminton
 
 
 REGISTERED_MATCHERS: List[TopicMatcher] = []
@@ -85,11 +126,15 @@ def register(matcher: TopicMatcher):
 register(GeneralMatcher())
 register(ExpensesMatcher())
 register(WorkLunchMatcher())
+register(WorkFrogMatcher())
+register(WorkSubwayMatcher())
+register(BadmintonMatcher())
 
-#  quick test
-o = Operation()
-o.amount = -100.0
-o.location = Location()
-o.location.address = 'THAI WOK'
-match(o)
-print(o.topic)
+if __name__ == '__main__':
+	#  quick test
+	o = Operation()
+	o.amount = -100.0
+	o.location = Location()
+	o.location.address = 'THAI WOK'
+	match(o)
+	print(o.topic)
