@@ -2,11 +2,14 @@ import csv
 import datetime
 import re
 from dataclasses import dataclass, field
-from operator import attrgetter
 from typing import List
 
-import utils
+import operation
 from operation import OperationType, Operation, Location
+import utils
+
+debug_check = True
+debug_print = False
 
 typeMappings = {
 	'Płatność kartą': OperationType.CARD_PAYMENT,
@@ -14,6 +17,8 @@ typeMappings = {
 	'Przelew na rachunek': OperationType.TRANSFER_IN,
 	'Wypłata z bankomatu': OperationType.ATM_OUT,
 	# '' : OperationType.ATM_IN,
+	'Obciążenie': OperationType.CHARGE,
+	'Zlecenie stałe': OperationType.STANDING_ORDER,
 	'Płatność web - kod mobilny': OperationType.MOBILE_PAYMENT,
 	'Zwrot płatności kartą': OperationType.CARD_PAYMENT_RETURN,
 	'Przelew do ZUS': OperationType.ZUS_PAYMENT,
@@ -61,7 +66,7 @@ IGNORED = []
 def load_and_parse_operations(filename):
 	bank_operations = []
 	missed_bank_operations = []
-	operations: List[Operation] = []
+	all_operations: List[Operation] = []
 
 	with open(filename) as csv_file:
 		reader = csv.reader(csv_file)
@@ -84,94 +89,81 @@ def load_and_parse_operations(filename):
 			pko_operation.descriptions = []
 			for data in row[6:]:  # 7th column = start of 'descriptions', total number of columns varies
 				pko_operation.descriptions.append(data)
-
 			bank_operations.append(pko_operation)
 
-			if pko_operation.transaction_type not in typeMappings:
-				missed_bank_operations.append(pko_operation)
-				continue
+	# map PkoBpOperation to Operation
+	for pko_operation in bank_operations:
+		o = Operation()
+		all_operations.append(o)
 
-			o = Operation()
-			operations.append(o)
-			o.id = pko_operation.id
-			o.date = datetime.datetime.strptime(pko_operation.currency_date, '%Y-%m-%d')
-			o.transaction_type = typeMappings.get(pko_operation.transaction_type)
-			o.amount = float(pko_operation.amount)
-			o.currency = pko_operation.currency
-			o.balance = pko_operation.after_transaction_balance
+		o.id = pko_operation.id
+		o.date = datetime.datetime.strptime(pko_operation.currency_date, '%Y-%m-%d')
+		o.transaction_type = typeMappings.get(pko_operation.transaction_type)
+		o.amount = float(pko_operation.amount)
+		o.currency = pko_operation.currency
+		o.balance = pko_operation.after_transaction_balance
 
-			parse_description_to_field_with_regex(pko_operation, o, 'receiver_account', 'Rachunek odbiorcy: (?P<acc>.*)', 'acc')
-			parse_description_to_field_with_regex(pko_operation, o, 'receiver_name', 'Nazwa odbiorcy: (?P<name>.*)', 'name')
-			parse_description_to_field_with_regex(pko_operation, o, 'receiver_address', 'Adres odbiorcy: (?P<addr>.*)', 'addr')
-			parse_description_to_field_with_regex(pko_operation, o, 'sender_account', 'Rachunek nadawcy: (?P<acc>.*)', 'acc')
-			parse_description_to_field_with_regex(pko_operation, o, 'sender_name', 'Nazwa nadawcy: (?P<name>.*)', 'name')
-			parse_description_to_field_with_regex(pko_operation, o, 'sender_address', 'Adres nadawcy: (?P<addr>.*)', 'addr')
-			parse_description_to_field_with_regex(pko_operation, o, 'conversion_date', 'Data przetworzenia: (?P<date>\\d{4}-\\d{2}-\\d{2})', 'date')
-			parse_description_to_field_with_regex(pko_operation, o, 'title', 'Tytuł: (?P<title>.*)', 'title')
-			parse_original_payment_amount(pko_operation, o)
-			parse_simple_location(pko_operation, o)
-			parse_full_location(pko_operation, o)
+		parse_description_by_regex(pko_operation, o, 'receiver_account', 'Rachunek odbiorcy: (?P<acc>.*)', 'acc')
+		parse_description_by_regex(pko_operation, o, 'receiver_name', 'Nazwa odbiorcy: (?P<name>.*)', 'name')
+		parse_description_by_regex(pko_operation, o, 'receiver_address', 'Adres odbiorcy: (?P<addr>.*)', 'addr')
+		parse_description_by_regex(pko_operation, o, 'sender_account', 'Rachunek nadawcy: (?P<acc>.*)', 'acc')
+		parse_description_by_regex(pko_operation, o, 'sender_name', 'Nazwa nadawcy: (?P<name>.*)', 'name')
+		parse_description_by_regex(pko_operation, o, 'sender_address', 'Adres nadawcy: (?P<addr>.*)', 'addr')
+		parse_description_by_regex(pko_operation, o, 'conversion_date', 'Data przetworzenia: (?P<date>\\d{4}-\\d{2}-\\d{2})', 'date')
+		parse_description_by_regex(pko_operation, o, 'title', 'Tytuł: (?P<title>.*)', 'title')
+		parse_original_payment_amount(pko_operation, o)
+		parse_simple_location(pko_operation, o)
+		parse_full_location(pko_operation, o)
 
-			# ignore unimportant descriptions
-			parse_ignore_description(pko_operation, 'Data i czas operacji: (?P<date>\\d{4}-\\d{2}-\\d{2})')
-			parse_ignore_description(pko_operation, 'Numer telefonu: \\+48 665 396 588')
-			parse_ignore_description(pko_operation, 'KAPIT\\.ODSETEK KARNYCH-OBCIĄŻENIE')
-			parse_ignore_description(pko_operation, 'Referencje własne zleceniodawcy:')
-			if o.transaction_type is OperationType.US_PAYMENT:
-				parse_ignore_description(pko_operation, 'Nazwa i nr identyfikatora:')
-				parse_ignore_description(pko_operation, 'Symbol formularza:')
-				parse_ignore_description(pko_operation, 'Okres płatności:')
-			if o.transaction_type in [OperationType.MOBILE_PAYMENT, OperationType.TERMINAL_RETURN]:
-				parse_ignore_description(pko_operation, 'Numer referencyjny:')
-			if o.transaction_type in [OperationType.CARD_PAYMENT, OperationType.CARD_PAYMENT_RETURN, OperationType.ATM_OUT]:
-				parse_ignore_description(pko_operation, 'Numer karty: 425125.*452')
+		# ignore unimportant descriptions
+		parse_ignore_description(pko_operation, 'Data i czas operacji: (?P<date>\\d{4}-\\d{2}-\\d{2})')
+		parse_ignore_description(pko_operation, 'Numer telefonu: \\+48 665 396 588')
+		parse_ignore_description(pko_operation, 'KAPIT\\.ODSETEK KARNYCH-OBCIĄŻENIE')
+		parse_ignore_description(pko_operation, 'Referencje własne zleceniodawcy:')
+		if o.transaction_type is OperationType.US_PAYMENT:
+			parse_ignore_description(pko_operation, 'Nazwa i nr identyfikatora:')
+			parse_ignore_description(pko_operation, 'Symbol formularza:')
+			parse_ignore_description(pko_operation, 'Okres płatności:')
+		if o.transaction_type in [OperationType.MOBILE_PAYMENT, OperationType.TERMINAL_RETURN]:
+			parse_ignore_description(pko_operation, 'Numer referencyjny:')
+		if o.transaction_type in [OperationType.CARD_PAYMENT, OperationType.CARD_PAYMENT_RETURN, OperationType.ATM_OUT]:
+			parse_ignore_description(pko_operation, 'Numer karty: 425125.*452')
 
-			# aggregate unmapped values to other field
-			for desc in pko_operation.descriptions:
-				if desc and '<OK>' not in desc:
-					o.other += desc + ' | '
+		# aggregate unmapped values to other field
+		for desc in pko_operation.descriptions:
+			if desc and '<OK>' not in desc:
+				o.other += desc + ' | '
 
-			# override payment type if it was a forwarded ZUS payment
-			if o.title and ' ZUS ' in o.title:
-				o.transaction_type = OperationType.ZUS_PAYMENT
+		# override payment type if it was a forwarded ZUS payment
+		if o.title and ' ZUS ' in o.title:
+			o.transaction_type = OperationType.ZUS_PAYMENT
 
-	# sort bank operations using all description columns and transaction type
-	for i in reversed(range(len(bank_operations[0].descriptions))):
-		bank_operations.sort(key=lambda bo: bo.descriptions[i])
-	bank_operations.sort(key=lambda bo: bo.transaction_type)
-	utils.print_bank_operations_list(bank_operations)
+	valid_operations = operation.get_valid_operations(all_operations)
 
-	operations.sort(key=lambda o: o.transaction_type)
-	utils.print_bank_operations_list(operations)
+	if debug_print:
+		# sort bank all_operations using all description columns and transaction type
+		for i in reversed(range(len(bank_operations[0].descriptions))):
+			bank_operations.sort(key=lambda bo: bo.descriptions[i])
+		bank_operations.sort(key=lambda bo: bo.transaction_type)
+		utils.print_bank_operations_list(bank_operations)
 
-	print()  # separator
+		valid_operations.sort(key=lambda o: o.transaction_type)
+		utils.print_bank_operations_list(valid_operations)
 
-	# check ignored entries (should print long list)
-	# IGNORED.sort() # sort alphabetically
-	# print(*IGNORED, sep='\n')
+		print()  # separator
 
-	# check if all descriptions were mapped or ignored (should print nothing)
-	unmapped = [o for o in operations if o.other]
-	print(f'unmapped description parts: {len(unmapped)}')
-	for o in unmapped:
-		print(f'\t{o.transaction_type}, {o.other}')
-	if len(unmapped):
-		print(f'unmapped description parts: {len(unmapped)} ^')
+	if debug_check:
+		# operations.check_ignored_descriptions(IGNORED)
+		operation.check_entries_count(all_operations, csv_count)
+		operation.check_untyped(all_operations)
+		operation.check_unassigned_descriptions(all_operations)
+		operation.check_untopiced(all_operations)
 
-	# check csv lines count vs operation count
-	print(f'csv entries: {csv_count} operations: {len(operations)}')
-
-	# check if all bank operation have an OperationType
-	print(f'missed bank operations: {len(missed_bank_operations)}')
-	for row in missed_bank_operations:
-		print(f'\t{row}')
-	if len(missed_bank_operations):
-		print(f'missed bank operations: {len(missed_bank_operations)} ^')
-
-	return operations
+	return all_operations
 
 
-def parse_description_to_field_with_regex(pko_operation: PkoBpOperation, target_obj, target_field_name, regex: str, regex_group_name: str):
+def parse_description_by_regex(pko_operation: PkoBpOperation, target_obj, target_field_name, regex: str,
+                               regex_group_name: str):
 	for d in pko_operation.descriptions:
 		m = re.match(regex, d)
 		if m:

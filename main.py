@@ -3,6 +3,7 @@ from typing import List
 import numpy as np
 import pandas as pd
 
+import operation
 import topics
 from operation import OperationType, Operation
 from parsers import pko
@@ -12,12 +13,14 @@ topics.print_structure(GENERAL)
 
 if __name__ == '__main__':
 	#
-
+	pko.debug_print = False
+	pko.debug_check = True
 	# df = pd.read_csv(file_path) # pandas
 	# filename = './data/history_csv_20190609_170438.csv'
-	filename = './data/history_csv_20190609_170438_sample.csv'
-	# filename = './data/js_20200101_20200131.csv'
+	# filename = './data/history_csv_20190609_170438_sample.csv'
+	filename = './data/js_20200101_20200131.csv'
 	operations: List[Operation] = pko.load_and_parse_operations(filename)
+	operations = operation.get_valid_operations(operations)
 
 	###################
 	# pandas analysis #

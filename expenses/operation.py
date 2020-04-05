@@ -1,5 +1,7 @@
+from __future__ import annotations
 from dataclasses import dataclass
 from enum import Enum
+from typing import List
 
 from topics import Topic
 
@@ -11,6 +13,8 @@ class OperationType(Enum):
 	 TRANSFER_IN,
 	 ATM_OUT,
 	 ATM_IN,
+	 CHARGE,
+	 STANDING_ORDER,
 	 MOBILE_PAYMENT,
 	 ZUS_PAYMENT,
 	 US_PAYMENT,
@@ -74,7 +78,7 @@ class Operation:
 		orig_amount_str = self.original_amount if self.original_amount else ""
 		orig_curr_str = self.original_currency if self.original_currency else ""
 		return \
-			f'{self.transaction_type:36}' \
+			f'{self.transaction_type if self.transaction_type else "-- UNKNOWN --":36}' \
 			f' || {self.amount:>10}' \
 			f' || loc: {location_str:64}' \
 			f' || title: {title_str:90}' \
@@ -91,3 +95,56 @@ class Operation:
 
 	def __hash__(self) -> int:
 		return super().__hash__()
+
+
+def get_valid_operations(all_operations):
+	valid = [o for o in all_operations if o.transaction_type]
+	return valid
+
+
+def check_entries_count(operations: List[Operation], csv_count):
+	""" check csv lines count vs operation count """
+	print(f'csv entries: {csv_count} all_operations: {len(operations)}')
+	return csv_count == len(operations)
+
+
+def check_untyped(operations: List[Operation]) -> List[Operation]:
+	""" check if all bank operation have an TransactionType """
+	untyped = [o for o in operations if not o.transaction_type]
+	print(f'untyped operations: {len(untyped)}')
+	for row in untyped:
+		print(f'\t{row}')
+	# if len(missed_bank_operations):
+	# 	print(f'missed bank all_operations: {len(missed_bank_operations)} ^')
+	print(f'untyped operations: {len(untyped)} ^')
+	return untyped
+
+
+def check_untopiced(operations: List[Operation]) -> List[Operation]:
+	""" check if all descriptions were mapped or ignored (should print nothing) """
+	untopiced = [o for o in operations if not o.topic]
+	print(f'untopiced operations: {len(untopiced)}')
+	for o in untopiced:
+		print(f'\t{o.transaction_type}, {o.title}, {o.location}')
+	# if len(untopiced):
+	# 	print(f'unmapped description parts: {len(untopiced)} ^')
+	print(f'untopiced operations: {len(untopiced)} ^')
+	return untopiced
+
+
+def check_unassigned_descriptions(operations: List[Operation]) -> List[Operation]:
+	# check if all descriptions were mapped or ignored (should print nothing)
+	unassigned = [o for o in operations if o.other]
+	print(f'unassigned description parts: {len(unassigned)}')
+	for o in unassigned:
+		print(f'\t{o.transaction_type}, {o.other}')
+	# if len(unassigned):
+	# 	print(f'unassigned description parts: {len(unassigned)} ^')
+	print(f'unassigned description parts: {len(unassigned)} ^')
+	return unassigned
+
+
+def check_ignored_descriptions(ignored: List[str]):
+	""" check ignored entries (should print long list) """
+	ignored.sort()  # sort alphabetically
+	print(*ignored, sep='\n')
