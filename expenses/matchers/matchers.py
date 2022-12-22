@@ -27,6 +27,13 @@ def matches_address(operation, address) -> bool:
 	return address in loc.address
 
 
+def matches_title_simple(operation, title) -> bool:
+	actual = operation.title
+	if not actual:
+		return False
+	return title in actual
+
+
 class TopicMatcher(ABC):
 
 	@abstractmethod
@@ -72,6 +79,43 @@ class ExpensesMatcher(GeneralMatcher):
 		return amount
 
 
+class HomeMatcher(ExpensesMatcher):
+	pass
+
+
+class HomeRentMatcher(HomeMatcher):
+	def get_topic(self):
+		return GENERAL.EXPENSES.HOME.RENT
+
+	def self_matches(self, operation: Operation) -> bool:
+		rent = matches_title_simple(operation, 'MIESZKANIE ALBATROS CZYNSZ')
+		return rent
+
+
+class HomeShoppingMatcher(HomeMatcher):
+	def get_topic(self):
+		return GENERAL.EXPENSES.HOME.SHOPPING
+
+	def self_matches(self, operation: Operation) -> bool:
+		return False  # TODO
+
+
+class HomeDeliveryFoodMatcher(HomeMatcher):
+	def get_topic(self):
+		return GENERAL.EXPENSES.HOME.DELIVERY_FOOD
+
+	def self_matches(self, operation: Operation) -> bool:
+		return False  # TODO
+
+
+class HomeCatMatcher(HomeMatcher):
+	def get_topic(self):
+		return GENERAL.EXPENSES.HOME.CAT
+
+	def self_matches(self, operation: Operation) -> bool:
+		return False  # TODO
+
+
 class WorkMatcher(ExpensesMatcher):
 	pass
 
@@ -106,7 +150,70 @@ class WorkSubwayMatcher(WorkMatcher):
 		return matches
 
 
-class BadmintonMatcher(ExpensesMatcher):
+class FoodMatcher(ExpensesMatcher):
+	pass
+
+
+class FastFoodsMatcher(FoodMatcher):
+	def get_topic(self):
+		return GENERAL.EXPENSES.FOOD.FAST_FOODS
+
+	def self_matches(self, operation: Operation) -> bool:
+		return False  # TODO
+
+
+class RestaurantsMatcher(FoodMatcher):
+	def get_topic(self):
+		return GENERAL.EXPENSES.FOOD.RESTAURANTS
+
+	def self_matches(self, operation: Operation) -> bool:
+		return False  # TODO
+
+
+class SportMatcher(ExpensesMatcher):
+	pass
+
+
+# class MultisportMatcher(SportMatcher): # ??
+# 	pass
+
+class SnowboardingMatcher(SportMatcher):
+	def get_topic(self):
+		return GENERAL.EXPENSES.SPORT.SNOWBOARDING
+
+	def self_matches(self, operation: Operation) -> bool:
+		return False  # TODO
+
+
+class ClimbingMatcher(SportMatcher):
+	pass
+
+
+class ClimbingEquipmentMatcher(ClimbingMatcher):
+	def get_topic(self):
+		return GENERAL.EXPENSES.SPORT.CLIMBING.CLIMBING_EQUIPMENT
+
+	def self_matches(self, operation: Operation) -> bool:
+		return False  # TODO
+
+
+class ClimbingEntranceFeeMatcher(ClimbingMatcher):
+	def get_topic(self):
+		return GENERAL.EXPENSES.SPORT.CLIMBING.ENTRANCE
+
+	def self_matches(self, operation: Operation) -> bool:
+		return False  # TODO
+
+
+class PoolMatcher(SportMatcher):
+	def get_topic(self):
+		return GENERAL.EXPENSES.SPORT.POOL
+
+	def self_matches(self, operation: Operation) -> bool:
+		return False  # TODO
+
+
+class BadmintonMatcher(SportMatcher):
 
 	def get_topic(self) -> topics.Topic:
 		return GENERAL.EXPENSES.SPORT.BADMINTON
@@ -116,25 +223,190 @@ class BadmintonMatcher(ExpensesMatcher):
 		return badminton
 
 
+class BoxingMatcher(SportMatcher):
+	def get_topic(self):
+		return GENERAL.EXPENSES.SPORT.BOXING
+
+	def self_matches(self, operation: Operation) -> bool:
+		return False  # TODO
+
+
+class EntertainmentMatcher(ExpensesMatcher):
+	pass
+
+
+class NightsOutMatcher(EntertainmentMatcher):
+	def get_topic(self):
+		return GENERAL.EXPENSES.ENTERTAINMENT.NIGHTS_OUT
+
+	def self_matches(self, operation: Operation) -> bool:
+		return False  # TODO
+
+
+class SpectaclesMatcher(EntertainmentMatcher):
+	def get_topic(self):
+		return GENERAL.EXPENSES.ENTERTAINMENT.SPECTACLES
+
+	def self_matches(self, operation: Operation) -> bool:
+		return False  # TODO
+
+
+class NetflixishMatcher(EntertainmentMatcher):
+	def get_topic(self):
+		return GENERAL.EXPENSES.ENTERTAINMENT.NETFLIX_ISH
+
+	def self_matches(self, operation: Operation) -> bool:
+		return False  # TODO
+
+
+class CarMatcher(ExpensesMatcher):
+	pass
+
+
+class CarFuelMatcher(CarMatcher):
+	def get_topic(self):
+		return GENERAL.EXPENSES.CAR.FUEL
+
+	def self_matches(self, operation: Operation) -> bool:
+		return False  # TODO
+
+
+class CarRepairsMatcher(CarMatcher):
+	def get_topic(self):
+		return GENERAL.EXPENSES.CAR.REPAIRS
+
+	def self_matches(self, operation: Operation) -> bool:
+		return False  # TODO
+
+
+class CarHighwaysMatcher(CarMatcher):
+	def get_topic(self):
+		return GENERAL.EXPENSES.CAR.HIGHWAYS
+
+	def self_matches(self, operation: Operation) -> bool:
+		return False  # TODO
+
+
+class CarFoodMatcher(CarMatcher):
+	def get_topic(self):
+		return GENERAL.EXPENSES.CAR.CAR_FOOD
+
+	def self_matches(self, operation: Operation) -> bool:
+		return False  # TODO
+
+
+class CarEquipmentMatcher(CarMatcher):
+	def get_topic(self):
+		return GENERAL.EXPENSES.CAR.CAR_EQUIPMENT
+
+	def self_matches(self, operation: Operation) -> bool:
+		return False  # TODO
+
+
+class HolidayMatcher(ExpensesMatcher):
+	pass
+
+
+class HolidayTripMatcher(HolidayMatcher):
+	def get_topic(self):
+		return GENERAL.EXPENSES.HOLIDAY.TRIP
+
+	def self_matches(self, operation: Operation) -> bool:
+		return False  # TODO
+
+
+class HolidayTransportMatcher(HolidayMatcher):
+	def get_topic(self):
+		return GENERAL.EXPENSES.HOLIDAY.TRANSPORT
+
+	def self_matches(self, operation: Operation) -> bool:
+		return False  # TODO
+
+
+class HolidayAtThePlaceMatcher(HolidayMatcher):
+	def get_topic(self):
+		return GENERAL.EXPENSES.HOLIDAY.AT_THE_PLACE
+
+	def self_matches(self, operation: Operation) -> bool:
+		return False  # TODO
+
+
+class IncomeMatcher(GeneralMatcher):
+	pass
+
+
+class LufthansaMatcher(IncomeMatcher):
+	pass
+
+
+class LufthansaIncomeMatcher(LufthansaMatcher):
+	def get_topic(self):
+		return GENERAL.INCOMES.LUFTHANSA.LUFTHANSA_INCOME
+
+	def self_matches(self, operation: Operation) -> bool:
+		return False  # TODO
+
+
+class LufthansaDelegationMatcher(LufthansaMatcher):
+	def get_topic(self):
+		return GENERAL.INCOMES.LUFTHANSA.LUFTHANSA_DELEGATION
+
+	def self_matches(self, operation: Operation) -> bool:
+		return False  # TODO
+
+
+class ParentsMatcher(IncomeMatcher):
+	pass
+
+
+class ParentPresentsMatcher(ParentsMatcher):
+	def get_topic(self):
+		return GENERAL.INCOMES.PARENTS.PARENT_PRESENTS
+
+	def self_matches(self, operation: Operation) -> bool:
+		return False  # TODO
+
+
+class ParentReturnsMatcher(ParentsMatcher):
+	def get_topic(self):
+		return GENERAL.INCOMES.PARENTS.PARENT_RETURNS
+
+	def self_matches(self, operation: Operation) -> bool:
+		return False  # TODO
+
+
 REGISTERED_MATCHERS: List[TopicMatcher] = []
 
 
+def register_all():
+	matcher_classes = TopicMatcher.__subclasses__()
+	for mc in matcher_classes:
+		register_subclasses(mc)
+
+
+def register_subclasses(matcher_class):
+	register(matcher_class())
+	for sub in matcher_class.__subclasses__():
+		register_subclasses(sub)
+
+
 def register(matcher: TopicMatcher):
+	print("Registering " + matcher.__class__.__name__)
 	REGISTERED_MATCHERS.append(matcher)
 
+register_all()
+# register(GeneralMatcher())
+# register(ExpensesMatcher())
+# register(WorkLunchMatcher())
+# register(WorkFrogMatcher())
+# register(WorkSubwayMatcher())
+# register(BadmintonMatcher())
 
-register(GeneralMatcher())
-register(ExpensesMatcher())
-register(WorkLunchMatcher())
-register(WorkFrogMatcher())
-register(WorkSubwayMatcher())
-register(BadmintonMatcher())
-
-if __name__ == '__main__':
-	#  quick test
-	o = Operation()
-	o.amount = -100.0
-	o.location = Location()
-	o.location.address = 'THAI WOK'
-	match(o)
-	print(o.topic)
+# if __name__ == '__main__':
+# 	#  quick test
+# 	o = Operation()
+# 	o.amount = -100.0
+# 	o.location = Location()
+# 	o.location.address = 'THAI WOK'
+# 	match(o)
+# 	print(o.topic)

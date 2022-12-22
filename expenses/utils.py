@@ -3,6 +3,7 @@ from enum import Enum
 from typing import List
 
 
+# unused
 def groupby_unsorted(seq, key=lambda x: x):
 	indexes = collections.defaultdict(list)
 	for i, elem in enumerate(seq):

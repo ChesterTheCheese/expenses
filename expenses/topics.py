@@ -1,4 +1,5 @@
 #
+import utils
 
 
 class Topic:
@@ -260,3 +261,4 @@ class ParentReturnsTopic(Topic):
 
 
 GENERAL = GeneralTopic("GENERAL")
+print_structure(GENERAL)
